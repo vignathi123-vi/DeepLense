@@ -191,17 +191,26 @@ class CNNT(nn.Module):
         )
 
     def forward(self, img):
-        x = self.to_patch_embedding(img)
+    x = self.to_patch_embedding(img)
+    b, n, _ = x.shape
 
-        # b: batch size  n: patch number  _: dim of patch
-        b, n, _ = x.shape
+    cls_tokens = repeat(self.cls_token, '1 1 d -> b 1 d', b=b)
+    x = torch.cat((cls_tokens, x), dim=1)
 
-        cls_tokens = repeat(self.cls_token, '1 1 d -> b 1 d', b=b)
-        x = torch.cat((cls_tokens, x), dim=1)
-        x += self.pos_embedding[:, :(n + 1)]
-        x = self.dropout(x)
-        x = self.transformer(x)
-        x = x.mean(dim=1) if self.pool == 'mean' else x[:, 0]
+    # dynamically handle any patch size
+    if (n + 1) > self.pos_embedding.shape[1]:
+        pos_emb = torch.nn.functional.interpolate(
+            self.pos_embedding.permute(0, 2, 1),
+            size=(n + 1),
+            mode='linear',
+            align_corners=False
+        ).permute(0, 2, 1)
+    else:
+        pos_emb = self.pos_embedding[:, :(n + 1)]
 
-        x = self.to_latent(x)
-        return self.mlp_head(x)
+    x += pos_emb
+    x = self.dropout(x)
+    x = self.transformer(x)
+    x = x.mean(dim=1) if self.pool == 'mean' else x[:, 0]
+    x = self.to_latent(x)
+    return self.mlp_head(x)
