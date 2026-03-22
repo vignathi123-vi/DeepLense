@@ -173,10 +173,10 @@ class CNNT(nn.Module):
         self.to_patch_embedding = CNN()
 
         # hyper-params
-        num_patches = 16 * 16
+       max_patches = 256  # maximum expected patches, avoids hardcoded assumption
         dim = 32
 
-        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
+        self.pos_embedding = nn.Parameter(torch.randn(1, max_patches + 1, dim))
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
